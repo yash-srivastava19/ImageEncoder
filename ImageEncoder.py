@@ -13,7 +13,7 @@ from functools import reduce
 XOR = lambda x : [reduce(xor,j) for i in x for j in i]
 CRITERIA = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER,10,1.0)
 FLAGS = cv2.KMEANS_RANDOM_CENTERS
-
+FACTOR = 2  #Used only when downsampling the image (In ProcessImage method.)
 class ImageEncoder:
   def __init__(self,img)->None:
     self._img = img
@@ -26,6 +26,18 @@ class ImageEncoder:
     return Hash.hexdigest()
   
   def ProcessImage(self,K=3):
+    # If the color features of the image needs to be enhanced(for security reason) - you can convert the image to HSV(uncomment to use this feature).
+    """
+    self._img = cv2.cvtColor(self._img,cv2.COLOR_BGR2HSV)
+    """
+    
+    #Additionally, if the time needs to be reduced, consider downsampling the image(uncomment to use this feature).
+    
+    """ 
+    rows,cols,channels = map(int,self._img.shape)
+    self._img = cv2.pyrDown(self._img,dstsize=(cols//FACTOR,rows//FACTOR))  
+    """
+    
     cImage = self._img.reshape((-1,3)).astype(numpy.float32)
     ret,label,center = cv2.kmeans(cImage,K,None,CRITERIA,10,FLAGS)
     center = numpy.uint8(center)
