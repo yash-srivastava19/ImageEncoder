@@ -6,6 +6,7 @@ It can be used to sign an image and needs optimization.
 #!/usr/bin/python3
 import cv2
 import numpy
+import pyexiv2
 from hashlib import sha512
 from operator import xor
 from functools import reduce
@@ -23,7 +24,9 @@ class ImageEncoder:
     Hash = sha512(usedforsecurity = True)
     hashDigest = "".join(map(str,XOR(prcsImage)))
     Hash.update(bytes(hashDigest,encoding = "utf-8"))
-    return Hash.hexdigest()
+    digest = Hash.hexdigest()
+    self.StampInImage(digest)
+    return digest
   
   def ProcessImage(self,K=3):
     # If the color features of the image needs to be enhanced(for security reason) - you can convert the image to HSV(uncomment to use this feature).
@@ -43,6 +46,20 @@ class ImageEncoder:
     center = numpy.uint8(center)
     resImage = (center[label.flatten()]).reshape((self._img.shape))
     return resImage
+  
+  def StampInImage(self,_Hash)-> None:
+    """ Stamps the hash in the image metadata. """
+
+    metadata = pyexiv2.ImageMetadata(self._imgpath)
+    metadata.read()
+    
+    """Register a new namespace to maintain clarity"""
+    
+    pyexiv2.unregister_namespaces()
+    pyexiv2.register_namespace("Security/","Security")
+    metadata['Xmp.Security.Key'] = _Hash
+
+    metadata.write()
  
 TestImage = cv2.imread("add/path/to/image/here") #Add path of your image here.
 PrivateKey = ImageEncoder(TestImage).ImageHash()
