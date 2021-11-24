@@ -10,25 +10,80 @@ import pyexiv2
 from hashlib import sha512
 from operator import xor
 from functools import reduce
+from dataclasses import dataclass
+
+@dataclass
+class Data:
+  SecuritClass = "Security/"
+  ModifiedClass = "Modified/"
+  SecurityTag = "Xmp.Security.Key"
+  ModifiedTag = "Xmp.Modified.IsModified"
+  InitialMod = "No"
+  ModifiedAns = "Yes"
+
+config = Data()
 
 XOR = lambda x : [reduce(xor,j) for i in x for j in i]
 CRITERIA = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER,10,1.0)
 FLAGS = cv2.KMEANS_RANDOM_CENTERS
 FACTOR = 2  #Used only when downsampling the image (In ProcessImage method.)
 class ImageEncoder:
-  def __init__(self,img)->None:
-    self._img = img
+  def __init__(self,imgpath)->None:
+    """ Constructor """
+
+    self._imgpath = imgpath
+    self._img = cv2.imread(self._imgpath)
   
-  def ImageHash(self) -> str:
-    prcsImage = self.ProcessImage(5)
+  def SetImageHash(self) -> str:
+    """ Compute the Hash for the Image """
+
+    prcsImage = self.ProcessImage()
     Hash = sha512(usedforsecurity = True)
     hashDigest = "".join(map(str,XOR(prcsImage)))
     Hash.update(bytes(hashDigest,encoding = "utf-8"))
-    digest = Hash.hexdigest()
-    self.StampInImage(digest)
-    return digest
+    self._Hash = Hash.hexdigest() 
+
+  def GetImageHash(self) -> str:
+    """ Return the computed hash """
+
+    return self._Hash  
+  
+  def RegisterNameSpace(self,metadata:pyexiv2.ImageMetadata) -> None:
+    """ Register the required namespaces associated with the image(Xmp custom metadata) - the condition """
+
+    if config.SecurityTag not in metadata.xmp_keys and config.ModifiedTag not in metadata.xmp_keys: #Make sure these are always together(SCE makes it difficult)
+      pyexiv2.register_namespace(config.SecuritClass ,"Security")
+      pyexiv2.register_namespace(config.ModifiedClass,"Modified")
+
+      metadata[config.SecurityTag] = self._Hash
+      metadata[config.ModifiedTag] = config.InitialMod
+
+      metadata.write()
+
+    else:
+      _privateKey = metadata._get_xmp_tag(config.SecurityTag).value
+      if _privateKey != self._Hash:
+        metadata[config.ModifiedTag] = config.ModifiedAns
+        metadata.write()
+
+  def StampImage(self):
+    """ Write the metadata in the image """
+
+    metadata = pyexiv2.ImageMetadata(self._imgpath)
+    metadata.read()    
+    
+    if "Xmp.Security.Key" not in metadata.xmp_keys:
+      self.SetImageHash()
+    
+    else :
+      self._Hash = None #To be decided on this later !
+    
+    self.RegisterNameSpace(metadata)
+    return self.GetImageHash()
   
   def ProcessImage(self,K=3):
+    """Process the Image for faster computations. """
+    
     # If the color features of the image needs to be enhanced(for security reason) - you can convert the image to HSV(uncomment to use this feature).
     """
     self._img = cv2.cvtColor(self._img,cv2.COLOR_BGR2HSV)
@@ -47,21 +102,8 @@ class ImageEncoder:
     resImage = (center[label.flatten()]).reshape((self._img.shape))
     return resImage
   
-  def StampInImage(self,_Hash)-> None:
-    """ Stamps the hash in the image metadata. """
-
-    metadata = pyexiv2.ImageMetadata(self._imgpath)
-    metadata.read()
-    
-    """Register a new namespace to maintain clarity"""
-    
-    pyexiv2.unregister_namespaces()
-    pyexiv2.register_namespace("Security/","Security")
-    metadata['Xmp.Security.Key'] = _Hash
-
-    metadata.write()
  
-TestImage = cv2.imread("add/path/to/image/here") #Add path of your image here.
-PrivateKey = ImageEncoder(TestImage).ImageHash()
+TestImagePath = "add/path/to/image/here" #Add path of your image here.
+PrivateKey = ImageEncoder(TestImage).StampImage()
 
 # Display : print(PrivateKey)
