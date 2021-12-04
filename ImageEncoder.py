@@ -1,12 +1,14 @@
 """
 Generate a Private Key for an Image - uses hashlib,numpy and other basic operations.
 It can be used to sign an image and needs optimization. 
+Edit : A QR Code can be generated from the PrivateKey.
 """ 
 
 #!/usr/bin/python3
 import cv2
 import numpy
 import pyexiv2
+import pyqrcode
 from hashlib import sha512
 from operator import xor
 from functools import reduce
@@ -20,6 +22,7 @@ class Data:
   ModifiedTag = "Xmp.Modified.IsModified"
   InitialMod = "No"
   ModifiedAns = "Yes"
+  QRMessage = "The following image has been identified with the following credentials : "
 
 config = Data()
 
@@ -48,6 +51,19 @@ class ImageEncoder:
 
     return self._Hash  
   
+
+  def GenerateQRCode(self,FileName:str,Scale:int = 8,ModuleColor:tuple = (0,0,0,255),BGColor:tuple = (255,255,255,255),QZ:int = 4 )->None:  
+    """ Use QRCode as a digital watermark due to its robust namture and easy applyability. Call after the hash has been modified/generated"""
+    md = pyexiv2.ImageMetadata(self._imgpath)
+    md.read()
+
+    modified = md._get_xmp_tag(config.ModifiedTag).value
+    key = md._get_xmp_tag(config.SecurityTag).value
+    qrcode = pyqrcode.create("{} \n IsModified : {} \n PrivateKey : {} \n ".format(config.QRMessage,modified,key))
+    qrcode.png(FileName,Scale,ModuleColor,BGColor,QZ)
+    print(qrcode.terminal(QZ))
+
+
   def RegisterNameSpace(self,metadata:pyexiv2.ImageMetadata) -> None:
     """ Register the required namespaces associated with the image(Xmp custom metadata) - the condition """
 
@@ -79,6 +95,7 @@ class ImageEncoder:
       self._Hash = None #To be decided on this later !
     
     self.RegisterNameSpace(metadata)
+    self.GenerateQRCode("QR_for_Image.png")
     return self.GetImageHash()
   
   def ProcessImage(self,K=3):
@@ -103,7 +120,7 @@ class ImageEncoder:
     return resImage
   
  
-TestImagePath = "add/path/to/image/here" #Add path of your image here.
-PrivateKey = ImageEncoder(TestImage).StampImage()
+TestImagePath = "logo.png" #Add path of your image here.
+PrivateKey = ImageEncoder(TestImagePath).StampImage()
 
 # Display : print(PrivateKey)
