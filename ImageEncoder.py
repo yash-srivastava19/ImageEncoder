@@ -120,7 +120,7 @@ class ImageEncoder:
     return resImage
   
  
-TestImagePath = "logo.png" #Add path of your image here.
+TestImagePath = "Add/path/to/image/here" #Add path of your image here.
 PrivateKey = ImageEncoder(TestImagePath).StampImage()
 
 # Display : print(PrivateKey)
