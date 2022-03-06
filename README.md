@@ -6,7 +6,11 @@ ImageEncoder went through a major revision in v.1.0.1 to prevent a major flaw in
 
 <p> The second version also saw removal of QRCode, which was added just as a unique feature - However it can be integrated in future versions(and this version too). It is separate from the Encoder, and it is better to keep it that way.</p>
 
+## v.1.0.2
+Well, we are moving from what I believed was a pretty clever technique to a place where we do not need to reinvent the wheel. I think it is the right time to move a perceptual hasing approach in the new repo - Maxwell. (ImageEncoder may not be supported) More updates will follow soon !
+
 ---
 ### Additional Resources
 [Mersenne Twister](https://en.wikipedia.org/wiki/Mersenne_Twister)
 [SIFT](https://en.wikipedia.org/wiki/Scale-invariant_feature_transform)
+[Perceptual Hashing](https://en.wikipedia.org/wiki/Perceptual_hashing)
